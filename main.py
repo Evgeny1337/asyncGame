@@ -104,8 +104,7 @@ async def animate_spaceship(canvas, start_row, start_column, frames):
         current_frame = next(frame_cycle)
         draw_frame(canvas, row, column, current_frame)
 
-        for _ in range(2):
-            await asyncio.sleep(0)
+        await asyncio.sleep(0)
 
 
 
