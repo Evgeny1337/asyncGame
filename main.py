@@ -9,13 +9,17 @@ RIGHT_KEY_CODE = 261
 UP_KEY_CODE = 259
 DOWN_KEY_CODE = 258
 
-file_1 = open('step_1.txt','r')
-FRAME_1 = file_1.read()
-file_1.close()
-file_2 = open('step_2.txt','r')
-FRAME_2 = file_2.read()
-file_2.close()
 
+
+
+def load_frames():
+    file_1 = open('step_1.txt', 'r')
+    frame_1 = file_1.read()
+    file_1.close()
+    file_2 = open('step_2.txt', 'r')
+    frame_2 = file_2.read()
+    file_2.close()
+    return frame_1, frame_2
 
 def get_frame_size(text):
     lines = text.splitlines()
@@ -169,7 +173,7 @@ def draw(canvas):
     rows_direction, columns_direction, space_pressed = 0,0,0
     centre_x = x//2 + rows_direction
     centre_y = y//2 + columns_direction
-    frames = [FRAME_1, FRAME_2]
+    frames = load_frames()
     rocket_coroutine = animate_spaceship(canvas, centre_y, centre_x, frames)
     for _ in range(max_star):
         x_star = random.randint(1, x)
@@ -188,11 +192,13 @@ def draw(canvas):
         canvas.refresh()
 
 
-
-if __name__ == '__main__':
+def main():
     curses.update_lines_cols()
     curses.wrapper(draw)
     curses.curs_set(False)
+
+if __name__ == '__main__':
+    main()
 
 
 
