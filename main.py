@@ -19,7 +19,7 @@ def load_frames():
     file_2 = open('step_2.txt', 'r')
     frame_2 = file_2.read()
     file_2.close()
-    return frame_1, frame_2
+    return frame_1,frame_1,frame_2,frame_2
 
 def get_frame_size(text):
     lines = text.splitlines()
@@ -137,23 +137,22 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0
         row += rows_speed
         column += columns_speed
 
-async def blink(canvas, row, column, symbol='*'):
+async def blink(canvas, row, column, offset_tics, symbol='*'):
     while True:
         canvas.addstr(row, column, symbol, curses.A_DIM)
-        ticks = [random.randint(1,20) for _ in range(4)]
-        for _ in range(ticks[0]):
+        for _ in range(offset_tics[0]):
             await asyncio.sleep(0)
 
         canvas.addstr(row, column, symbol)
-        for _ in range(ticks[1]):
+        for _ in range(offset_tics[1]):
             await asyncio.sleep(0)
 
         canvas.addstr(row, column, symbol, curses.A_BOLD)
-        for _ in range(ticks[2]):
+        for _ in range(offset_tics[2]):
             await asyncio.sleep(0)
 
         canvas.addstr(row, column, symbol)
-        for _ in range(ticks[3]):
+        for _ in range(offset_tics[3]):
             await asyncio.sleep(0)
 
 def draw(canvas):
@@ -178,7 +177,8 @@ def draw(canvas):
         x_star = random.randint(1, x)
         y_star = random.randint(1, y)
         symbol = random.choice(symbols)
-        coroutine =  blink(canvas, y_star, x_star, symbol)
+        offset_tics = [random.randint(1, 20) for _ in range(4)]
+        coroutine =  blink(canvas, y_star, x_star, offset_tics, symbol)
         coroutines.append(coroutine)
     coroutines.append(rocket_coroutine)
     while True:
