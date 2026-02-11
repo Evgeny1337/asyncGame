@@ -1,3 +1,4 @@
+import os
 import random
 import time
 import curses
@@ -10,7 +11,39 @@ UP_KEY_CODE = 259
 DOWN_KEY_CODE = 258
 
 
+async def fill_orbit_with_garbage(coroutines, canvas, max_x):
+    garbage_frames = []
+    for file in os.listdir('./pictures'):
+        if file.endswith('.txt'):
+            file_path = os.path.join('./pictures', file)
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    garbage_frames.append(content)
+            except Exception:
+                continue
+    while True:
+        garbage_frame = random.choice(garbage_frames)
+        garbage_column = random.randint(1, max_x - 1)
+        garbage_coroutine = fly_garbage(canvas, garbage_column, garbage_frame)
+        coroutines.append(garbage_coroutine)
+        await asyncio.sleep(0)
+    
 
+
+async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
+    rows_number, columns_number = canvas.getmaxyx()
+ 
+    column = max(column, 0)
+    column = min(column, columns_number - 1)
+
+    row = 0
+
+    while row < rows_number:
+        draw_frame(canvas, row, column, garbage_frame)
+        await asyncio.sleep(0)
+        draw_frame(canvas, row, column, garbage_frame, negative=True)
+        row += speed
 
 def load_frames():
     file_1 = open('step_1.txt', 'r')
@@ -171,16 +204,24 @@ def draw(canvas):
     rows_direction, columns_direction, space_pressed = 0,0,0
     centre_x = x//2 + rows_direction
     centre_y = y//2 + columns_direction
-    frames = load_frames()
-    rocket_coroutine = animate_spaceship(canvas, centre_y, centre_x, frames)
-    for _ in range(max_star):
-        x_star = random.randint(1, x)
-        y_star = random.randint(1, y)
-        symbol = random.choice(symbols)
-        offset_tics = [random.randint(1, 20) for _ in range(4)]
-        coroutine =  blink(canvas, y_star, x_star, offset_tics, symbol)
-        coroutines.append(coroutine)
-    coroutines.append(rocket_coroutine)
+    # frames = load_frames()
+    # rocket_coroutine = animate_spaceship(canvas, centre_y, centre_x, frames)
+
+    # with open('./pictures/lamp.txt', "r") as garbage_file:
+    #     frame = garbage_file.read()
+
+    # coroutine = fly_garbage(canvas, column=10, garbage_frame=frame)
+    # for _ in range(max_star):
+    #     x_star = random.randint(1, x)
+    #     y_star = random.randint(1, y)
+    #     symbol = random.choice(symbols)
+    #     offset_tics = [random.randint(1, 20) for _ in range(4)]
+    #     coroutine =  blink(canvas, y_star, x_star, offset_tics, symbol)
+    #     coroutines.append(coroutine)
+    # coroutines.append(rocket_coroutine)
+    # coroutines.append(coroutine)
+    garbage_coroutine = fill_orbit_with_garbage(coroutines, canvas, x)
+    coroutines.append(garbage_coroutine)
     while True:
         for coroutine in coroutines.copy():
             try:
