@@ -5,8 +5,9 @@ import curses
 import asyncio
 from itertools import cycle
 from physics import update_speed
-from obstacles import Obstacle, show_obstacles
+from obstacles import Obstacle
 from explosion import explode
+from game_scenario import PHRASES, get_garbage_delay_tics
 
 SPACE_KEY_CODE = 32
 LEFT_KEY_CODE = 260
@@ -16,11 +17,35 @@ DOWN_KEY_CODE = 258
 
 OBSTACLES = []
 OBSTACLES_IN_LAST_COLLISIONS = []
+YEAR = 1957
+SPEED_MULTIPLIER = 1.0
 
 
 async def sleep(tics=1):
     for _ in range(tics):
         await asyncio.sleep(0)
+
+
+async def year_counter():
+    global YEAR, SPEED_MULTIPLIER
+    frames_per_year = 40
+    frame_count = 0
+    while True:
+        if frame_count >= frames_per_year:
+            YEAR += 1
+            frame_count = 0
+            if YEAR >= 2020:
+                SPEED_MULTIPLIER = 2.0
+            elif YEAR >= 2011:
+                SPEED_MULTIPLIER = 1.8
+            elif YEAR >= 1998:
+                SPEED_MULTIPLIER = 1.6
+            elif YEAR >= 1981:
+                SPEED_MULTIPLIER = 1.4
+            elif YEAR >= 1969:
+                SPEED_MULTIPLIER = 1.2
+        frame_count += 1
+        await sleep(1)
 
 
 async def draw_subwindow(canvas):
@@ -30,10 +55,14 @@ async def draw_subwindow(canvas):
     begin_x = max_x - win_width - 1
     subwin = canvas.derwin(win_height, win_width, begin_y, begin_x)
     subwin.clear()
+    year_now = 1957
     while True:
         subwin = canvas.derwin(win_height, win_width, begin_y, begin_x)
         subwin.border()
-        subwin.addstr(1, 1, "Текст в дочернем окне")
+        if YEAR in PHRASES:
+            year_now = YEAR
+        subwin.addstr(3, 1, PHRASES[year_now][:18])
+        subwin.refresh()
         await sleep(1)
 
 
@@ -46,19 +75,15 @@ async def show_gameover(canvas):
  | |__| | (_| | | | | | |  __/ | |__| |\\ V /  __/ |   
   \\_____|\\__,_|_| |_| |_|\\___|  \\____/  \\_/ \\___|_|   
     """
-    while True:
-        height, width = canvas.getmaxyx()
-        lines = gameover_art.splitlines()
-        
-        start_row = height // 2 - len(lines) // 2
-        
-        for i, line in enumerate(lines):
-            if line.strip():
-                start_col = width // 2 - len(line) // 2
-                canvas.addstr(start_row + i, start_col, line, curses.A_BOLD)
-        
-        canvas.refresh()
-        await sleep(1)
+    height, width = canvas.getmaxyx()
+    lines = gameover_art.splitlines()
+    start_row = height // 2 - len(lines) // 2
+    for i, line in enumerate(lines):
+        if line.strip():
+            start_col = width // 2 - len(line) // 2
+            canvas.addstr(start_row + i, start_col, line, curses.A_BOLD)
+    canvas.refresh()
+    await sleep(50)
 
 
 async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0):
@@ -105,7 +130,15 @@ async def fill_orbit_with_garbage(coroutines, canvas, max_x):
                 continue
     
     while True:
-        await sleep(4)
+        global YEAR
+        delay = get_garbage_delay_tics(YEAR)
+        
+        if delay is None:
+            await sleep(10)
+            continue
+            
+        await sleep(delay)
+        
         if len(coroutines) < 5:  
             garbage_frame = random.choice(garbage_frames)
             garbage_column = random.randint(1, max_x - 1)
@@ -216,37 +249,44 @@ async def animate_spaceship(canvas, start_row, start_column, frames, coordinates
             return
             
         rows_direction, columns_direction, space_pressed = read_controls(canvas)
-        row_speed, column_speed = update_speed(row_speed, column_speed, rows_direction, columns_direction)
+        row_speed, column_speed = update_speed(
+            row_speed, 
+            column_speed, 
+            rows_direction, 
+            columns_direction,
+            row_speed_limit=2,
+            column_speed_limit=2
+        )
 
         coordinates["space"] = space_pressed
 
         new_row = row + row_speed
         new_column = column + column_speed
 
+
+        draw_frame(canvas, row, column, current_frame, negative=True)
+        
+
         if (min_row <= new_row <= max_row and 
             min_col <= new_column <= max_col):
-            if row != new_row or column != new_column:
-                draw_frame(canvas, row, column, current_frame, negative=True)
-                row, column = new_row, new_column
-                current_frame = next(frame_cycle)
-                draw_frame(canvas, row, column, current_frame)
-        else:
-            current_frame = next(frame_cycle)
-            draw_frame(canvas, row, column, current_frame, negative=True)
-            draw_frame(canvas, row, column, current_frame)
+            row, column = new_row, new_column
+        
+        current_frame = next(frame_cycle)
+        draw_frame(canvas, row, column, current_frame)
 
         coordinates["row"], coordinates["column"] = row, column
         await sleep(1)
 
+
 async def run_spaceship(coroutines, canvas, coordinates, frames):
     ship_height, ship_width = get_frame_size(frames[0])
-    
     burst_count = 0  
     burst_size = 3   
     shot_cooldown = 0  
     burst_cooldown = 0  
     ship_alive = [True]
     game_over_shown = False
+
     
     rocket_coroutine = animate_spaceship(canvas, coordinates["row"], coordinates["column"], frames, coordinates, ship_alive)
     coroutines.append(rocket_coroutine)
@@ -325,8 +365,6 @@ def draw(canvas):
     canvas.keypad(True)
     canvas.nodelay(True)
     
-  
-    
     canvas.clear()
     canvas.border()
     canvas.refresh()
@@ -340,8 +378,6 @@ def draw(canvas):
     win_begin_x = x + 2 - win_width - 1
     win_end_y = win_begin_y + win_height
     win_end_x = win_begin_x + win_width
-
-
 
     max_star = random.randint(1, x*y) // 10
     centre_x = x // 2 
@@ -367,21 +403,18 @@ def draw(canvas):
             coroutines.append(coroutine)
             stars_generated += 1
 
-
-
+    year_coroutine = year_counter()
     score_coroutine = draw_subwindow(canvas)
     garbage_coroutine = fill_orbit_with_garbage(garbage_coroutines, canvas, x)
     fire_spaceship_coroutine = run_spaceship(coroutines, canvas, coordinates, frames)
-    obstacle_coroutine = show_obstacles(draw_frame, canvas, OBSTACLES)
+
 
     coroutines.extend([
         garbage_coroutine, 
         fire_spaceship_coroutine, 
-        obstacle_coroutine,
-        score_coroutine
+        score_coroutine,
+        year_coroutine
     ])
-
-
 
     canvas.clear()
 
