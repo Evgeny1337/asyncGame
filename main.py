@@ -23,6 +23,20 @@ async def sleep(tics=1):
         await asyncio.sleep(0)
 
 
+async def draw_subwindow(canvas):
+    max_y, max_x = canvas.getmaxyx()
+    win_height, win_width = 10, 20
+    begin_y = max_y - win_height - 1 
+    begin_x = max_x - win_width - 1
+    subwin = canvas.derwin(win_height, win_width, begin_y, begin_x)
+    subwin.clear()
+    while True:
+        subwin = canvas.derwin(win_height, win_width, begin_y, begin_x)
+        subwin.border()
+        subwin.addstr(1, 1, "Текст в дочернем окне")
+        await sleep(1)
+
+
 async def show_gameover(canvas):
     gameover_art = """
    _____                         ____                 
@@ -194,6 +208,8 @@ async def animate_spaceship(canvas, start_row, start_column, frames, coordinates
     row_speed = column_speed = 0
     current_frame = next(frame_cycle)
     
+    draw_frame(canvas, row, column, current_frame)
+    
     while True:
         if not ship_alive[0]:
             draw_frame(canvas, row, column, current_frame, negative=True)
@@ -207,18 +223,20 @@ async def animate_spaceship(canvas, start_row, start_column, frames, coordinates
         new_row = row + row_speed
         new_column = column + column_speed
 
-        if min_row <= new_row <= max_row and min_col <= new_column <= max_col:
+        if (min_row <= new_row <= max_row and 
+            min_col <= new_column <= max_col):
             if row != new_row or column != new_column:
                 draw_frame(canvas, row, column, current_frame, negative=True)
                 row, column = new_row, new_column
-
-        draw_frame(canvas, row, column, current_frame, negative=True)
-        current_frame = next(frame_cycle)
-        draw_frame(canvas, row, column, current_frame)
+                current_frame = next(frame_cycle)
+                draw_frame(canvas, row, column, current_frame)
+        else:
+            current_frame = next(frame_cycle)
+            draw_frame(canvas, row, column, current_frame, negative=True)
+            draw_frame(canvas, row, column, current_frame)
 
         coordinates["row"], coordinates["column"] = row, column
         await sleep(1)
-
 
 async def run_spaceship(coroutines, canvas, coordinates, frames):
     ship_height, ship_width = get_frame_size(frames[0])
@@ -307,9 +325,7 @@ def draw(canvas):
     canvas.keypad(True)
     canvas.nodelay(True)
     
-    curses.start_color()
-    curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)
-    canvas.bkgd(' ', curses.color_pair(1))
+  
     
     canvas.clear()
     canvas.border()
@@ -319,6 +335,14 @@ def draw(canvas):
     y = y - 2
     x = x - 2
 
+    win_height, win_width = 10, 20
+    win_begin_y = y + 2 - win_height - 1 
+    win_begin_x = x + 2 - win_width - 1
+    win_end_y = win_begin_y + win_height
+    win_end_x = win_begin_x + win_width
+
+
+
     max_star = random.randint(1, x*y) // 10
     centre_x = x // 2 
     centre_y = y // 2
@@ -326,6 +350,26 @@ def draw(canvas):
     frames = load_frames()
     coordinates = {'column': centre_x, "row": centre_y, "space": False}
 
+    stars_generated = 0
+    max_attempts = max_star * 10
+
+    while stars_generated < max_star and max_attempts > 0:
+        max_attempts -= 1 
+        
+        x_star = random.randint(1, x)
+        y_star = random.randint(1, y)
+        
+        if not (win_begin_y <= y_star < win_end_y and 
+                win_begin_x <= x_star < win_end_x):
+            symbol = random.choice(symbols)
+            offset_tics = [random.randint(1, 20) for _ in range(4)]
+            coroutine = blink(canvas, y_star, x_star, offset_tics, symbol)
+            coroutines.append(coroutine)
+            stars_generated += 1
+
+
+
+    score_coroutine = draw_subwindow(canvas)
     garbage_coroutine = fill_orbit_with_garbage(garbage_coroutines, canvas, x)
     fire_spaceship_coroutine = run_spaceship(coroutines, canvas, coordinates, frames)
     obstacle_coroutine = show_obstacles(draw_frame, canvas, OBSTACLES)
@@ -333,18 +377,14 @@ def draw(canvas):
     coroutines.extend([
         garbage_coroutine, 
         fire_spaceship_coroutine, 
-        obstacle_coroutine
+        obstacle_coroutine,
+        score_coroutine
     ])
 
-    for _ in range(max_star):
-        x_star = random.randint(1, x)
-        y_star = random.randint(1, y)
-        symbol = random.choice(symbols)
-        offset_tics = [random.randint(1, 20) for _ in range(4)]
-        coroutine = blink(canvas, y_star, x_star, offset_tics, symbol)
-        coroutines.append(coroutine)
+
 
     canvas.clear()
+
     while True:
         canvas.border()
 
