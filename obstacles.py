@@ -66,8 +66,6 @@ def _is_point_inside(corner_row, corner_column, size_rows, size_columns, point_r
 
 
 def has_collision(obstacle_corner, obstacle_size, obj_corner, obj_size=(1, 1)):
-    '''Determine if collision has occured. Return True or False.'''
-
     opposite_obstacle_corner = (
         obstacle_corner[0] + obstacle_size[0] - 1,
         obstacle_corner[1] + obstacle_size[1] - 1,
