@@ -27,8 +27,13 @@ async def fill_orbit_with_garbage(coroutines, canvas, max_x, garbage_frames):
             continue
             
         await sleep(delay)
+
+        garbage_count = 0
+        for coroutine in coroutines:
+            if coroutine.__name__ == 'fly_garbage':
+                garbage_count += 1
         
-        if len(coroutines) < 5:  
+        if garbage_count < 5:  
             garbage_frame = random.choice(garbage_frames)
             garbage_column = random.randint(1, max_x - 1)
             garbage_coroutine = fly_garbage(canvas, garbage_column, garbage_frame)
@@ -156,9 +161,7 @@ async def run_spaceship(coroutines, canvas, coordinates, frames):
 
 
 def draw(canvas):
-    symbols = '+*.:'
     coroutines = []
-    garbage_coroutines = []
     
     curses.noecho()
     curses.cbreak()
@@ -192,7 +195,7 @@ def draw(canvas):
 
     year_coroutine = year_counter()
     score_coroutine = draw_subwindow(canvas, game_state)
-    garbage_coroutine = fill_orbit_with_garbage(garbage_coroutines, canvas, max_x, garbage_frames)
+    garbage_coroutine = fill_orbit_with_garbage(coroutines, canvas, max_x, garbage_frames)
     spaceship_coroutine = run_spaceship(coroutines, canvas, coordinates, ship_frames)
 
 
@@ -207,13 +210,6 @@ def draw(canvas):
 
     while True:
         canvas.border()
-
-        for coroutine in garbage_coroutines.copy():
-            try:
-                coroutine.send(None)
-            except StopIteration:
-                garbage_coroutines.remove(coroutine)
-        
         for coroutine in coroutines.copy():
             try:
                 coroutine.send(None)
