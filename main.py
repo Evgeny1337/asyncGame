@@ -4,18 +4,14 @@ import curses
 from explosion import explode
 from game_scenario import  get_garbage_delay_tics
 from utils import load_frames, load_garbage_frames, sleep
-from constants import SUBWINDOW_HEIGHT, SUBWINDOW_WIDTH
+from constants import SUBWINDOW_HEIGHT, SUBWINDOW_WIDTH, SPACE_KEY_CODE, LEFT_KEY_CODE, RIGHT_KEY_CODE, UP_KEY_CODE, DOWN_KEY_CODE
 from game_state import game_state
 from game_mechanics import (
     year_counter, fire, fly_garbage, animate_spaceship
 )
 from ui import draw_subwindow, show_gameover, generate_stars
 
-SPACE_KEY_CODE = 32
-LEFT_KEY_CODE = 260
-RIGHT_KEY_CODE = 261
-UP_KEY_CODE = 259
-DOWN_KEY_CODE = 258
+
 
 
 async def fill_orbit_with_garbage(coroutines, canvas, max_x, garbage_frames):
